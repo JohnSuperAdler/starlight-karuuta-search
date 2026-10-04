@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>狩歌サーチ</title>
+<style>
+:root {
+  --bg: #faf7f2; --panel: #ffffff; --ink: #2a2320; --muted: #7a6f68; --line: #e7dfd5;
+  --accent: #b3122e; --accent-soft: #fbe5e9; --gold: #b8860b; --mark: #ffe08a; --mark-ink: #2a2320;
+  --chip: #f2ece4; --sel: #fff3d6;
+  --p1: #8a9aa9; --p2: #4f8a6b; --p3: #3f6fb0; --p4: #8a55b5; --p5: #c2410c; --p9: #b3122e;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17141a; --panel: #211d25; --ink: #ece6ee; --muted: #a39aa8; --line: #352f3b;
+    --accent: #ff5d76; --accent-soft: #3a1f28; --gold: #e0b44a; --mark: #6b5310; --mark-ink: #fff4d6;
+    --chip: #2c2731; --sel: #33292a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17141a; --panel: #211d25; --ink: #ece6ee; --muted: #a39aa8; --line: #352f3b;
+  --accent: #ff5d76; --accent-soft: #3a1f28; --gold: #e0b44a; --mark: #6b5310; --mark-ink: #fff4d6;
+  --chip: #2c2731; --sel: #33292a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.6 "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: max(10px, env(safe-area-inset-top)) 16px 10px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 18px; margin: 0; letter-spacing: .04em; white-space: nowrap; }
+h1 span { color: var(--accent); }
+.tabs { display: flex; gap: 4px; }
+.tabs button, .chip, .seg button { font: inherit; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+  border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+input[type=search] { font: inherit; flex: 1 1 200px; min-width: 0; padding: 6px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; max-width: 1400px; margin: 8px auto 0; align-items: center; }
+.chip { font-size: 13px; padding: 2px 10px; max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.filters .chip[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.vtabs .chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip.small { font-size: 12px; }
+label.toggle { font-size: 13px; color: var(--muted); display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+main { max-width: 1400px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: minmax(280px, 400px) 1fr; gap: 16px; }
+main > * { min-width: 0; }
+@media (max-width: 820px) { main { grid-template-columns: minmax(0, 1fr); } }
+.list { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; align-self: start;
+  max-height: calc(100vh - 150px); overflow-y: auto; position: sticky; top: 130px; }
+@media (max-width: 820px) { .list { position: static; max-height: 45vh; } }
+.list .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid var(--line); font-size: 13px; color: var(--muted); position: sticky; top: 0; background: var(--panel); }
+.seg { display: inline-flex; gap: 2px; }
+.seg button { font-size: 12px; padding: 1px 8px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; padding: 10px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 6px 6px 4px; cursor: pointer; background: var(--bg);
+  display: flex; flex-direction: column; gap: 2px; min-height: 72px; position: relative; text-align: left; font: inherit; color: inherit; }
+.card .no { font-size: 11px; color: var(--muted); }
+.card .w { font-weight: 700; font-size: 16px; line-height: 1.2; word-break: keep-all; }
+.card .n { font-size: 11px; color: var(--muted); margin-top: auto; }
+.card .pt { position: absolute; top: 5px; right: 6px; font-size: 11px; font-weight: 700; color: #fff;
+  border-radius: 999px; min-width: 18px; text-align: center; padding: 0 4px; }
+.card.zero { opacity: .5; }
+.card[aria-current="true"] { outline: 2px solid var(--accent); background: var(--sel); }
+.p1 { background: var(--p1); } .p2 { background: var(--p2); } .p3 { background: var(--p3); }
+.p4 { background: var(--p4); } .p5 { background: var(--p5); } .p9 { background: var(--p9); }
+.songs { list-style: none; margin: 0; padding: 0; }
+.songs li { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.songs li[aria-current="true"] { background: var(--sel); box-shadow: inset 3px 0 var(--accent); }
+.songs .t { font-weight: 600; }
+.songs .m { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+.detail { min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.empty { color: var(--muted); text-align: center; padding: 48px 16px; }
+.dh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+.dh h2 { margin: 0; font-size: 28px; }
+.dh .sub { color: var(--muted); font-size: 14px; }
+.stats { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--ink); font-size: 18px; margin-right: 2px; }
+.src { font-size: 11px; border-radius: 4px; padding: 0 6px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.song-block { border-top: 1px solid var(--line); padding: 12px 0 4px; }
+.song-block:first-of-type { border-top: 0; }
+.song-block h3 { margin: 0 0 4px; font-size: 16px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.song-block h3 a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--muted); cursor: pointer; }
+.vlabel { font-size: 12px; color: var(--muted); margin: 6px 0 2px; }
+.hit { margin: 2px 0; padding: 2px 8px; border-left: 3px solid var(--line); }
+.rom { display: block; font-size: 12px; color: var(--muted); }
+mark { background: var(--mark); color: var(--mark-ink); border-radius: 3px; padding: 0 1px; }
+mark.dim { background: transparent; box-shadow: inset 0 -2px var(--gold); color: inherit; }
+mark.on { background: var(--accent); color: #fff; }
+.flag { font-size: 10px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 2px; }
+.cardchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.cardchips button { font: inherit; font-size: 13px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  border-radius: 6px; padding: 2px 8px; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.cardchips button .pt { color: #fff; border-radius: 999px; font-size: 10px; padding: 0 5px; }
+.cardchips button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.cardchips .x { color: var(--muted); font-size: 11px; }
+.vtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; }
+.lyrics { margin-top: 12px; }
+.lyrics p { margin: 0; padding: 1px 8px; border-left: 3px solid transparent; }
+.lyrics p.has { border-left-color: var(--gold); }
+.lyrics p.gap { height: .8em; }
+ruby rt { font-size: 10px; color: var(--muted); }
+a.ext { color: var(--muted); font-size: 12px; }
+.missing { margin-top: 10px; font-size: 13px; color: var(--muted); }
+.missing span { display: inline-block; margin: 2px 6px 2px 0; }
+footer { max-width: 1400px; margin: 0 auto; padding: 8px 16px max(24px, env(safe-area-inset-bottom)); color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>狩歌<span>サーチ</span></h1>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-card" aria-selected="true">カード → 楽曲</button>
+      <button role="tab" id="tab-song" aria-selected="false">楽曲 → カード</button>
+    </div>
+    <input type="search" id="q" placeholder="カード・読み・曲名で検索">
+    <label class="toggle"><input type="checkbox" id="showRom"> ローマ字</label>
+  </div>
+  <div class="filters" id="filters"></div>
+</header>
+<main>
+  <section class="list" id="list"></section>
+  <section class="detail" id="detail"></section>
+</main>
+<footer>歌詞：Revue Starlight Fandom Wiki。判定はローマ字の読みを基準に自動判定＋手動確認。「?」はローマ字がなく辞書読みで判定した行。</footer>
+
+<script src="data/site-data.js"></script>
+<script>
+(() => {
+  const D = window.KARUTA;
+  if (!D) { document.getElementById('detail').innerHTML = '<div class="panel empty">data/site-data.js が読み込めません。</div>'; return; }
+
+  // ---- source groups for filtering
+  const GROUPS = [
+    ['TV', s => s.startsWith('TVアニメ')],
+    ['劇場版', s => s === '劇場版' || s.startsWith('ロンド')],
+    ['舞台', s => s.startsWith('舞台')],
+    ['中等部', s => s.startsWith('シークフェルト中等部')],
+    ['スタリラ', s => s === 'スタリラ'],
+    ['Starry Session', s => s.startsWith('Band Live')],
+    ['その他', s => true],
+  ];
+  const groupOf = s => GROUPS.find(([, f]) => f(s))[0];
+
+  const cardById = Object.fromEntries(D.cards.map(c => [c.id, c]));
+  const songById = Object.fromEntries(D.songs.map(s => [s.id, s]));
+  D.songs.forEach(s => s.versions.forEach(v => { v.group = groupOf(v.source); v.song = s; }));
+
+  const state = { tab: 'card', card: null, song: null, ver: null, q: '', rom: false,
+    groups: new Set(GROUPS.map(g => g[0])), cardSort: 'no', songSort: 'title', focus: null };
+
+  const $ = id => document.getElementById(id);
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const visibleVersions = s => s.versions.filter(v => state.groups.has(v.group));
+  const ptClass = p => 'p' + (p >= 9 ? 9 : p);
+
+  // ---- aggregates (respecting the source filter)
+  function cardStats(cid) {
+    let songs = 0, occ = 0;
+    // a song counts once, with its highest-scoring version
+    for (const s of D.songs) {
+      let best = 0;
+      for (const v of visibleVersions(s)) {
+        const h = v.hits[cid];
+        if (h) best = Math.max(best, h.reduce((a, x) => a + x[1], 0));
+      }
+      if (best) { songs++; occ += best; }
+    }
+    return { songs, occ };
+  }
+  function songCards(s, vers) {
+    const m = new Map();
+    for (const v of vers || visibleVersions(s))
+      for (const [cid, hs] of Object.entries(v.hits)) {
+        const n = hs.reduce((a, x) => a + x[1], 0);
+        m.set(cid, Math.max(m.get(cid) || 0, n));
+      }
+    return m;
+  }
+
+  // ---- lyric line rendering with ruby and highlights
+  function renderLine(row, marks) {
+    const [text, , ruby] = row;
+    const cuts = new Set([0, text.length]);
+    (ruby || []).forEach(([a, b]) => { cuts.add(a); cuts.add(b); });
+    marks.forEach(m => { if (m.a >= 0) { cuts.add(m.a); cuts.add(m.b); } });
+    const pts = [...cuts].sort((x, y) => x - y);
+    let out = '';
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      let seg = esc(text.slice(a, b));
+      const r = (ruby || []).find(([ra, rb]) => ra === a && rb === b);
+      if (r) seg = `<ruby>${seg}<rt>${esc(r[2])}</rt></ruby>`;
+      else if ((ruby || []).some(([ra, rb]) => ra <= a && b <= rb)) {
+        const rr = ruby.find(([ra, rb]) => ra <= a && b <= rb);
+        if (a === rr[0]) seg = `<ruby>${esc(text.slice(rr[0], rr[1]))}<rt>${esc(rr[2])}</rt></ruby>`;
+        else seg = '';
+      }
+      const m = marks.filter(m => m.a <= a && b <= m.b);
+      if (m.length && seg) {
+        const cls = m.some(x => x.on) ? 'on' : m.some(x => x.dim) ? 'dim' : '';
+        seg = `<mark class="${cls}" title="${esc(m.map(x => x.label).join(' / '))}">${seg}</mark>`;
+      }
+      out += seg;
+    }
+    return out;
+  }
+  const romHtml = row => state.rom && row[1] ? `<span class="rom">${esc(row[1])}</span>` : '';
+
+  // ---- filters
+  function drawFilters() {
+    $('filters').innerHTML = GROUPS.map(([g]) =>
+      `<button class="chip" data-g="${g}" aria-pressed="${state.groups.has(g)}">${g}</button>`).join('');
+  }
+  $('filters').addEventListener('click', e => {
+    const g = e.target.dataset.g; if (!g) return;
+    state.groups.has(g) ? state.groups.delete(g) : state.groups.add(g);
+    if (!state.groups.size) GROUPS.forEach(([x]) => state.groups.add(x));
+    drawFilters(); draw();
+  });
+
+  // ---- matching search text
+  function cardMatchesQ(c) {
+    const q = state.q; if (!q) return true;
+    return [c.id, c.word, ...c.readings, ...c.alts].some(x => x && x.toLowerCase().includes(q));
+  }
+  function songMatchesQ(s) {
+    const q = state.q; if (!q) return true;
+    return s.title.toLowerCase().includes(q) || s.page.toLowerCase().includes(q);
+  }
+
+  // ---- card tab
+  function drawCardList() {
+    const stats = Object.fromEntries(D.cards.map(c => [c.id, cardStats(c.id)]));
+    let cs = D.cards.filter(cardMatchesQ);
+    if (state.cardSort === 'songs') cs = [...cs].sort((a, b) => stats[b.id].songs - stats[a.id].songs);
+    if (state.cardSort === 'pt') cs = [...cs].sort((a, b) => b.point - a.point || a.id.localeCompare(b.id));
+    $('list').innerHTML = `<div class="head"><span>${cs.length} 枚</span>
+      <span class="seg" id="cardSort">${[['no', '番号'], ['pt', '点数'], ['songs', '曲数']].map(([k, l]) =>
+        `<button data-k="${k}" aria-pressed="${state.cardSort === k}">${l}</button>`).join('')}</span></div>
+      <div class="cards">${cs.map(c => `<button class="card${stats[c.id].songs ? '' : ' zero'}" data-c="${c.id}"
+        aria-current="${state.card === c.id}"><span class="no">${c.id.slice(5)}</span><span class="w">${esc(c.word)}</span>
+        <span class="pt ${ptClass(c.point)}">${c.point}</span><span class="n">${stats[c.id].songs} 曲・${stats[c.id].occ} 回</span></button>`).join('')}</div>`;
+  }
+
+  function drawCardDetail() {
+    const c = cardById[state.card];
+    if (!c) {
+      const none = D.cards.filter(c => !cardStats(c.id).songs);
+      $('detail').innerHTML = `<div class="panel empty">左のカードを選んでください。
+        ${none.length ? `<div class="missing">現在の絞り込みで一度も出てこないカード：<br>${none.map(c => `<span>${c.id.slice(5)} ${esc(c.word)}</span>`).join('')}</div>` : ''}</div>`;
+      return;
+    }
+    const st = cardStats(c.id);
+    const blocks = [];
+    for (const s of D.songs) {
+      const vs = visibleVersions(s).filter(v => v.hits[c.id]);
+      if (!vs.length) continue;
+      const total = Math.max(...vs.map(v => v.hits[c.id].reduce((a, x) => a + x[1], 0)));
+      blocks.push({ s, vs, total });
+    }
+    blocks.sort((a, b) => b.total - a.total || a.s.title.localeCompare(b.s.title, 'ja'));
+    const readings = [...c.readings, ...c.alts].filter(Boolean).join('・');
+    $('detail').innerHTML = `<div class="panel"><div class="dh"><h2>${esc(c.word)}</h2>
+        <span class="sub">${c.id}　${esc(readings)}</span><span class="pt ${ptClass(c.point)}" style="color:#fff;border-radius:999px;padding:0 8px">${c.point} 点</span></div>
+        <div class="stats"><span><b>${st.songs}</b>曲</span><span><b>${st.occ}</b>回</span></div></div>
+      <div class="panel">${blocks.length ? blocks.map(({ s, vs, total }) => `<div class="song-block">
+        <h3><a data-s="${s.id}">${esc(s.title)}</a><span class="src">${esc(vs[0].source)}</span><span class="sub" style="font-size:12px;color:var(--muted)">×${total}</span></h3>
+        ${vs.map(v => `${s.versions.length > 1 ? `<div class="vlabel">${esc(v.label === 'main' ? '原版' : v.label)}</div>` : ''}
+          ${v.hits[c.id].map(([li, n, spans, kind, ver]) => {
+            const marks = spans.map(([a, b]) => ({ a, b, label: c.word }));
+            return `<div class="hit">${renderLine(v.lines[li], marks)}${n > 1 ? `<span class="flag">×${n}</span>` : ''}${kind.includes('ateji') ? '<span class="flag">当て字</span>' : ''}${kind.includes('ruby') ? '<span class="flag">ルビ</span>' : ''}${ver ? '' : '<span class="flag" title="ローマ字なし。辞書読みで判定">?</span>'}${romHtml(v.lines[li])}</div>`;
+          }).join('')}`).join('')}
+      </div>`).join('') : '<div class="empty">該当する曲はありません。</div>'}</div>`;
+  }
+
+  // ---- song tab
+  function drawSongList() {
+    let ss = D.songs.filter(s => visibleVersions(s).length && songMatchesQ(s));
+    const info = s => { const m = songCards(s); let pts = 0; m.forEach((n, cid) => pts += cardById[cid].point); return { n: m.size, pts }; };
+    const inf = Object.fromEntries(ss.map(s => [s.id, info(s)]));
+    if (state.songSort === 'title') ss.sort((a, b) => a.title.localeCompare(b.title, 'ja'));
+    if (state.songSort === 'cards') ss.sort((a, b) => inf[b.id].n - inf[a.id].n);
+    if (state.songSort === 'pts') ss.sort((a, b) => inf[b.id].pts - inf[a.id].pts);
+    $('list').innerHTML = `<div class="head"><span>${ss.length} 曲</span>
+      <span class="seg" id="songSort">${[['title', '曲名'], ['cards', '枚数'], ['pts', '点数']].map(([k, l]) =>
+        `<button data-k="${k}" aria-pressed="${state.songSort === k}">${l}</button>`).join('')}</span></div>
+      <ul class="songs">${ss.map(s => `<li data-s="${s.id}" aria-current="${state.song === s.id}"><div class="t">${esc(s.title)}</div>
+        <div class="m"><span class="src">${esc(visibleVersions(s)[0].source)}</span><span>${inf[s.id].n} 枚・${inf[s.id].pts} 点</span>
+        ${s.versions.length > 1 ? `<span>${s.versions.length} 版本</span>` : ''}</div></li>`).join('')}</ul>`;
+  }
+
+  function drawSongDetail() {
+    const s = songById[state.song];
+    if (!s) { $('detail').innerHTML = '<div class="panel empty">左の曲を選んでください。</div>'; return; }
+    const vs = visibleVersions(s).length ? visibleVersions(s) : s.versions;
+    const v = vs.find(x => x.id === state.ver) || vs[0];
+    const m = songCards(s, [v]);
+    const chips = [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    let pts = 0; chips.forEach(([cid]) => pts += cardById[cid].point);
+    const marksByLine = {};
+    for (const [cid, hs] of Object.entries(v.hits))
+      for (const [li, n, spans, kind] of hs)
+        for (const [a, b] of (spans.length ? spans : [[-1, -1]]))
+          (marksByLine[li] = marksByLine[li] || []).push({ a, b, cid, label: cid.slice(5) + ' ' + cardById[cid].word,
+            on: state.focus === cid, dim: state.focus && state.focus !== cid });
+    const lines = v.lines.map((row, i) => {
+      if (!row[0]) return '<p class="gap"></p>';
+      const mk = marksByLine[i] || [];
+      const ateji = mk.filter(x => x.a < 0).map(x => `<span class="flag">${esc(x.label)}（当て字）</span>`).join('');
+      return `<p class="${mk.length ? 'has' : ''}">${renderLine(row, mk.filter(x => x.a >= 0))}${ateji}${romHtml(row)}</p>`;
+    }).join('');
+    const notVerified = v.lines.some((row, i) => row[0] && !row[1]);
+    $('detail').innerHTML = `<div class="panel"><div class="dh"><h2>${esc(s.title)}</h2><span class="src">${esc(v.source)}</span></div>
+        <div class="stats"><span><b>${chips.length}</b>枚</span><span><b>${pts}</b>点</span>
+        <span>${esc(v.singers.join(', '))}</span><a class="ext" href="${esc(v.url)}" target="_blank" rel="noopener">wiki ↗</a></div>
+        ${vs.length > 1 ? `<div class="vtabs">${vs.map(x => `<button class="chip small" data-v="${x.id}" aria-pressed="${x.id === v.id}">${esc(x.label === 'main' ? '原版' : x.label)}</button>`).join('')}</div>` : ''}
+        ${v.merged.length ? `<div class="missing">同じ歌詞：${esc(v.merged.join(' / '))}</div>` : ''}
+        <div class="cardchips">${chips.map(([cid, n]) => { const c = cardById[cid];
+          return `<button data-focus="${cid}" aria-pressed="${state.focus === cid}"><span class="pt ${ptClass(c.point)}">${c.point}</span>${esc(c.word)}<span class="x">${cid.slice(5)}${n > 1 ? ' ×' + n : ''}</span></button>`; }).join('')}</div>
+        ${notVerified ? '<div class="missing">※ ローマ字のない行は辞書の読みで判定しています。</div>' : ''}
+      </div>
+      <div class="panel lyrics">${lines}</div>`;
+  }
+
+  // ---- main draw / routing
+  function draw() {
+    $('tab-card').setAttribute('aria-selected', state.tab === 'card');
+    $('tab-song').setAttribute('aria-selected', state.tab === 'song');
+    if (state.tab === 'card') { drawCardList(); drawCardDetail(); } else { drawSongList(); drawSongDetail(); }
+  }
+  function writeHash() {
+    const h = state.tab === 'card' ? (state.card ? 'card=' + state.card : 'cards')
+      : (state.song ? 'song=' + state.song + (state.ver ? '&v=' + state.ver : '') : 'songs');
+    history.replaceState(null, '', '#' + h);
+  }
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    if (p.has('song') || location.hash === '#songs') { state.tab = 'song'; state.song = p.get('song'); state.ver = p.get('v'); }
+    else if (p.has('card') || location.hash === '#cards') { state.tab = 'card'; state.card = p.get('card'); }
+  }
+  function go(fn) { fn(); writeHash(); draw(); }
+
+  $('tab-card').onclick = () => go(() => state.tab = 'card');
+  $('tab-song').onclick = () => go(() => state.tab = 'song');
+  $('q').addEventListener('input', e => { state.q = e.target.value.trim().toLowerCase(); draw(); });
+  $('showRom').addEventListener('change', e => { state.rom = e.target.checked; draw(); });
+  $('list').addEventListener('click', e => {
+    const c = e.target.closest('[data-c]'), s = e.target.closest('[data-s]'), k = e.target.closest('[data-k]');
+    if (k) { if (k.parentElement.id === 'cardSort') state.cardSort = k.dataset.k; else state.songSort = k.dataset.k; draw(); return; }
+    if (c) go(() => state.card = c.dataset.c);
+    if (s) go(() => { state.song = s.dataset.s; state.ver = null; state.focus = null; });
+    if (c || s) $('detail').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  $('detail').addEventListener('click', e => {
+    const s = e.target.closest('[data-s]'), v = e.target.closest('[data-v]'), f = e.target.closest('[data-focus]');
+    if (s) go(() => { state.tab = 'song'; state.song = s.dataset.s; state.ver = null; state.focus = state.card; });
+    if (v) go(() => state.ver = v.dataset.v);
+    if (f) {
+      if (state.focus === f.dataset.focus) go(() => { state.tab = 'card'; state.card = f.dataset.focus; });
+      else { state.focus = f.dataset.focus; drawSongDetail(); }
+    }
+  });
+  window.addEventListener('hashchange', () => { readHash(); draw(); });
+
+  readHash(); drawFilters(); draw();
+})();
+</script>
+</body>
+</html>
